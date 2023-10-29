@@ -25,24 +25,24 @@ def build_query(domain_name: str, record_type: int):
     return query
 
 
-if __name__ == '__main__':
-    domain_name = "www.example.com"
-    print(f"Resolving {domain_name=}")
-    query = build_query(domain_name, 1)
-    # create a UDP socket
-    # `socket.AF_INET` means that we're connecting to the internet
-    #                  (as opposed to a Unix domain socket `AF_UNIX` for example)
-    # `socket.SOCK_DGRAM` means "UDP"
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+def lookup_domain(domain_name: str) -> str:
+    query = build_query(domain_name, TYPE_A)
+    # socket.AF_INET means we're connecting to the internet (as opposed to a Unix domain socket `AF_UNIX` for example)
+    socket_family = socket.AF_INET
+    socket_type = socket.SOCK_DGRAM  # UDP
+    sock = socket.socket(socket_family, socket_type)
     sock.sendto(query, (DNS_SERVER, DNS_PORT))
 
-    # read the response. UDP DNS responses are usually less than 512 bytes
-    # (see https://www.netmeister.org/blog/dns-size.html for MUCH more on that)
-    # so reading 1024 bytes is enough
     response, _ = sock.recvfrom(1024)
     print(f"Got {response=}")
 
     packet = parse_dns_packet(response)
     print(f"Parsed {packet=}")
-    ip_string = ip_to_string(packet.answers[0].data)
-    print(f"Got ip {ip_string}")
+    return ip_to_string(packet.answers[0].data)
+
+
+if __name__ == '__main__':
+    domain_name = "www.example.com"
+    print(f"Resolving {domain_name=}")
+    resolved_ip = lookup_domain(domain_name)
+    print(f"Resolved to {resolved_ip}")

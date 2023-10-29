@@ -1,5 +1,3 @@
-import pytest
-
 from parsers import encode_dns_name
 
 

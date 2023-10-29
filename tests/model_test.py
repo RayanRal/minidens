@@ -1,5 +1,3 @@
-import pytest
-
 from model import header_to_bytes, DNSHeader
 
 
