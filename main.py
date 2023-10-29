@@ -1,18 +1,12 @@
 import random
 import socket
+from typing import Optional
 
+from constants import CLASS_IN, DNS_PORT, TYPE_A, DNS_SERVER, TYPE_NS, ROOT_NAMESERVER
 from parsers import encode_dns_name, parse_dns_packet, ip_to_string
-from model import DNSHeader, DNSQuestion, header_to_bytes, question_to_bytes
+from model import DNSHeader, DNSQuestion, header_to_bytes, question_to_bytes, DNSPacket
 
 random.seed(42)
-
-# https://datatracker.ietf.org/doc/html/rfc1035#section-3.2.2
-TYPE_A = 1
-# https://datatracker.ietf.org/doc/html/rfc1035#section-3.2.4
-CLASS_IN = 1
-
-DNS_PORT = 53
-DNS_SERVER = "8.8.8.8"
 
 
 def build_query(domain_name: str, record_type: int):
@@ -23,6 +17,18 @@ def build_query(domain_name: str, record_type: int):
     question = DNSQuestion(name=name, type_=record_type, clazz=CLASS_IN)
     query = header_to_bytes(header) + question_to_bytes(question)
     return query
+
+
+def send_query(ns_ip_address: str, domain_name: str, record_type: int):
+    query = build_query(domain_name, record_type)
+    # socket.AF_INET means we're connecting to the internet (as opposed to a Unix domain socket `AF_UNIX` for example)
+    socket_family = socket.AF_INET
+    socket_type = socket.SOCK_DGRAM  # UDP
+    sock = socket.socket(socket_family, socket_type)
+    sock.sendto(query, (ns_ip_address, DNS_PORT))
+    response, _ = sock.recvfrom(1024)
+    print(f"Got {response=}")
+    return parse_dns_packet(response)
 
 
 def lookup_domain(domain_name: str) -> str:
@@ -41,8 +47,42 @@ def lookup_domain(domain_name: str) -> str:
     return ip_to_string(packet.answers[0].data)
 
 
+def get_answer(packet: DNSPacket) -> Optional[str]:
+    for x in packet.answers:
+        if x.type_ == TYPE_A:
+            # it's actually a str already, as we cut corners and stored parsed data in DNSPacket
+            return str(x.data)
+
+
+def get_nameserver_ip(packet: DNSPacket) -> Optional[bytes]:
+    for x in packet.additionals:
+        if x.type_ == TYPE_A:
+            return x.data
+
+
+def get_nameserver(packet: DNSPacket) -> Optional[str]:
+    for x in packet.authorities:
+        if x.type_ == TYPE_NS:
+            return x.data.decode('utf-8')
+
+
+def resolve(domain_name: str, record_type: int) -> str:
+    nameserver = ROOT_NAMESERVER
+    while True:
+        print(f"Querying {nameserver} for {domain_name}")
+        response = send_query(nameserver, domain_name, record_type)
+        if ip := get_answer(response):
+            return ip
+        elif ns_ip := get_nameserver_ip(response):
+            nameserver = ns_ip
+        elif ns_domain := get_nameserver(response):
+            nameserver = resolve(ns_domain, TYPE_A)
+        else:
+            raise Exception(f"Can't resolve {domain_name}")
+
+
 if __name__ == '__main__':
-    domain_name = "www.example.com"
+    domain_name = "facebook.com"
     print(f"Resolving {domain_name=}")
-    resolved_ip = lookup_domain(domain_name)
-    print(f"Resolved to {resolved_ip}")
+    result = resolve(domain_name, TYPE_A)
+    print(f"Resolved to {result=}")
