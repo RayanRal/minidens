@@ -2,8 +2,8 @@ import random
 import socket
 from typing import Optional
 
-from constants import CLASS_IN, DNS_PORT, TYPE_A, DNS_SERVER, TYPE_NS, ROOT_NAMESERVER
-from parsers import encode_dns_name, parse_dns_packet, ip_to_string
+from constants import CLASS_IN, DNS_PORT, TYPE_A, TYPE_NS, ROOT_NAMESERVER
+from parsers import encode_dns_name, parse_dns_packet
 from model import DNSHeader, DNSQuestion, header_to_bytes, question_to_bytes, DNSPacket
 
 random.seed(42)
@@ -29,22 +29,6 @@ def send_query(ns_ip_address: str, domain_name: str, record_type: int):
     response, _ = sock.recvfrom(1024)
     print(f"Got {response=}")
     return parse_dns_packet(response)
-
-
-def lookup_domain(domain_name: str) -> str:
-    query = build_query(domain_name, TYPE_A)
-    # socket.AF_INET means we're connecting to the internet (as opposed to a Unix domain socket `AF_UNIX` for example)
-    socket_family = socket.AF_INET
-    socket_type = socket.SOCK_DGRAM  # UDP
-    sock = socket.socket(socket_family, socket_type)
-    sock.sendto(query, (DNS_SERVER, DNS_PORT))
-
-    response, _ = sock.recvfrom(1024)
-    print(f"Got {response=}")
-
-    packet = parse_dns_packet(response)
-    print(f"Parsed {packet=}")
-    return ip_to_string(packet.answers[0].data)
 
 
 def get_answer(packet: DNSPacket) -> Optional[str]:
