@@ -1,4 +1,3 @@
-import dataclasses
 import struct
 from io import BytesIO
 

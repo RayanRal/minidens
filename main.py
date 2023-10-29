@@ -1,9 +1,7 @@
 import random
-from io import BytesIO
-
-from parsers import encode_dns_name, parse_dns_packet, ip_to_string
 import socket
 
+from parsers import encode_dns_name, parse_dns_packet, ip_to_string
 from model import DNSHeader, DNSQuestion, header_to_bytes, question_to_bytes
 
 random.seed(42)
