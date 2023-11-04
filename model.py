@@ -39,11 +39,17 @@ class DNSPacket:
     additionals: List[DNSRecord]
 
 
+# TODO: this doesn't work yet
+def packet_to_bytes(packet: DNSPacket) -> bytes:
+    fields = dataclasses.astuple(packet)
+    return struct.pack("!HHHHHH", *fields)
+
+
 # big endian encoding
-def header_to_bytes(header: DNSHeader):
+def header_to_bytes(header: DNSHeader) -> bytes:
     fields = dataclasses.astuple(header)
     return struct.pack("!HHHHHH", *fields)
 
 
-def question_to_bytes(question: DNSQuestion):
+def question_to_bytes(question: DNSQuestion) -> bytes:
     return question.name + struct.pack("!HH", question.type_, question.clazz)
