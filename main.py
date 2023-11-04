@@ -2,14 +2,14 @@ import random
 import socket
 from typing import Optional
 
-from constants import CLASS_IN, DNS_PORT, TYPE_A, TYPE_NS, ROOT_NAMESERVER
+from constants import CLASS_IN, DNS_PORT, TYPE_A, TYPE_NS, ROOT_NAMESERVER, TYPE_CNAME
 from parsers import encode_dns_name, parse_dns_packet
 from model import DNSHeader, DNSQuestion, header_to_bytes, question_to_bytes, DNSPacket
 
 random.seed(42)
 
 
-def build_query(domain_name: str, record_type: int):
+def build_query(domain_name: str, record_type: int) -> bytes:
     name = encode_dns_name(domain_name)
     id = random.randint(0, 65535)
     RECURSION_DESIRED = 1 << 8  # https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
@@ -19,7 +19,7 @@ def build_query(domain_name: str, record_type: int):
     return query
 
 
-def send_query(ns_ip_address: str, domain_name: str, record_type: int):
+def send_query(ns_ip_address: str, domain_name: str, record_type: int) -> DNSPacket:
     query = build_query(domain_name, record_type)
     # socket.AF_INET means we're connecting to the internet (as opposed to a Unix domain socket `AF_UNIX` for example)
     socket_family = socket.AF_INET
@@ -38,6 +38,13 @@ def get_answer(packet: DNSPacket) -> Optional[str]:
             return str(x.data)
 
 
+# This method doesn't work yet
+def get_cname_alias(packet: DNSPacket) -> Optional[str]:
+    for x in packet.authorities:
+        if x.type_ == TYPE_A:
+            return str(x.data)
+
+
 def get_nameserver_ip(packet: DNSPacket) -> Optional[bytes]:
     for x in packet.additionals:
         if x.type_ == TYPE_A:
@@ -52,11 +59,14 @@ def get_nameserver(packet: DNSPacket) -> Optional[str]:
 
 def resolve(domain_name: str, record_type: int) -> str:
     nameserver = ROOT_NAMESERVER
+    domain = domain_name
     while True:
-        print(f"Querying {nameserver} for {domain_name}")
-        response = send_query(nameserver, domain_name, record_type)
+        print(f"Querying {nameserver} for {domain}")
+        response = send_query(nameserver, domain, record_type)
         if ip := get_answer(response):
             return ip
+        # elif domain_alias := get_cname_alias(response):
+        #     domain = domain_alias
         elif ns_ip := get_nameserver_ip(response):
             nameserver = ns_ip
         elif ns_domain := get_nameserver(response):
@@ -66,7 +76,7 @@ def resolve(domain_name: str, record_type: int) -> str:
 
 
 if __name__ == '__main__':
-    domain_name = "facebook.com"
+    domain_name = "www.youtube.com"
     print(f"Resolving {domain_name=}")
-    result = resolve(domain_name, TYPE_A)
+    result = resolve(domain_name, TYPE_CNAME)
     print(f"Resolved to {result=}")

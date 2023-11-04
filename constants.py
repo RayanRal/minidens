@@ -1,6 +1,7 @@
 
 # https://datatracker.ietf.org/doc/html/rfc1035#section-3.2.2
 TYPE_A = 1
+TYPE_CNAME = 5
 TYPE_NS = 2
 TYPE_TXT = 16
 # https://datatracker.ietf.org/doc/html/rfc1035#section-3.2.4
