@@ -1,5 +1,8 @@
+import argparse
 import random
 import socket
+from collections import namedtuple
+from functools import lru_cache
 from typing import Optional
 
 from constants import CLASS_IN, DNS_PORT, TYPE_A, TYPE_NS, ROOT_NAMESERVER, TYPE_CNAME
@@ -19,6 +22,7 @@ def build_query(domain_name: str, record_type: int) -> bytes:
     return query
 
 
+@lru_cache
 def send_query(ns_ip_address: str, domain_name: str, record_type: int) -> DNSPacket:
     query = build_query(domain_name, record_type)
     # socket.AF_INET means we're connecting to the internet (as opposed to a Unix domain socket `AF_UNIX` for example)
@@ -57,6 +61,7 @@ def get_nameserver(packet: DNSPacket) -> Optional[str]:
             return x.data.decode('utf-8')
 
 
+@lru_cache
 def resolve(domain_name: str, record_type: int) -> str:
     nameserver = ROOT_NAMESERVER
     domain = domain_name
@@ -76,7 +81,16 @@ def resolve(domain_name: str, record_type: int) -> str:
 
 
 if __name__ == '__main__':
-    domain_name = "www.youtube.com"
+    parser = argparse.ArgumentParser(description='Resolve domain name')
+    parser.add_argument('name', type=str,
+                        help='domain name to be resolved')
+    parser.add_argument('-type', type=int, required=False,
+                        default=TYPE_A, choices=[1, 5],
+                        help='Type of domain (A, CNAME) to resolve')
+
+    args = parser.parse_args()
+    domain_name = args.name
+    domain_type = args.type
     print(f"Resolving {domain_name=}")
-    result = resolve(domain_name, TYPE_CNAME)
+    result = resolve(domain_name, domain_type)
     print(f"Resolved to {result=}")
